@@ -293,7 +293,7 @@ def learn(self,train_set,val_set):
       counter += 1
     else:
       counter = 0
-    if counter > glocalk.patience_f:
+    if counter >= glocalk.patience_f:
       print("Fine-training Early Stopping")
       break
     last_rmse = train_rmse

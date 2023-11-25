@@ -188,4 +188,3 @@ class GLocalK(Recommender):
 
             return self.clean_pre[:,user_idx][item_idx]
         
-print("=====")
