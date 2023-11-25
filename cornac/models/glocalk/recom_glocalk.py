@@ -34,8 +34,8 @@ class GLocalK(Recommender):
         gk_size = 3, # width=height of kernel for convolution
 
         # Hyperparameters to tune for specific case
-        max_epoch_p = 5, # max number of epochs for pretraining
-        max_epoch_f = 10, # max number of epochs for finetuning
+        max_epoch_p = 500, # max number of epochs for pretraining
+        max_epoch_f = 1000, # max number of epochs for finetuning
         patience_p = 5, # number of consecutive rounds of early stopping condition before actual stop for pretraining
         patience_f = 10, # and finetuning
         tol_p = 1e-4, # minimum threshold for the difference between consecutive values of train rmse, used for early stopping, for pretraining
@@ -109,8 +109,13 @@ class GLocalK(Recommender):
                 print("Learning...")
 
             if self.seed is not None:
+                np.random.seed(self.seed)
                 torch.manual_seed(self.seed)
                 torch.cuda.manual_seed(self.seed)
+                torch.cuda.manual_seed_all(self.seed)
+                torch.backends.cudnn.deterministic = True
+                torch.backends.cudnn.benchmark = False
+                torch.backends.cudnn.enabled = False
 
             self.glk = GLocalK(
                 verbose=self.verbose,
@@ -137,13 +142,13 @@ class GLocalK(Recommender):
             self.pre=learn(self,train_set,val_set)
 
             if self.verbose:
-                print("Learning completed")
+                print(f"Learning completed : [{self.pre.shape}]")
 
         elif self.verbose:
             print("%s is trained already (trainable = False)" % (self.name))
 
-        self.clean_pre = np.clip(self.pre, self.glk.rating_min,self.glk.rating_max)
-
+        self.clean_pre = np.clip(self.pre, self.glk.pre_min,self.glk.pre_max)
+        
         return self
 
     def score(self, user_idx, item_idx=None):
@@ -183,3 +188,4 @@ class GLocalK(Recommender):
 
             return self.clean_pre[:,user_idx][item_idx]
         
+print("=====")

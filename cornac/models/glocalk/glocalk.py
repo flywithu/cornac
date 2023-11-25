@@ -29,7 +29,6 @@ from tqdm.auto import trange
     # n_layers,
     # n_m,
 
-
 class GLocalK(nn.Module):
     def __init__(
     self,
@@ -68,8 +67,6 @@ class GLocalK(nn.Module):
       self.lambda_2 = lambda_2
       self.lambda_s = lambda_s
       self.dot_scale = dot_scale
-      self.rating_min = 0
-      self.rating_max = 0
       self.verbose = verbose
       self.pre_min = pre_min
       self.pre_max = pre_max
@@ -193,7 +190,8 @@ def learn(self,train_set,val_set):
 
 
   if glocalk.verbose:
-    print(f"trainset shape3: {train_r.shape}")
+    print(f"trainset shape: {train_r.shape}")
+    print(f"pre_min {pre_min} pre_max: {pre_max}")
 
   # test_r = val_set.csc_matrix.toarray().T
 
@@ -218,14 +216,15 @@ def learn(self,train_set,val_set):
 
 
   def monitor_value():
-    return last_rmse
+    return -last_rmse
 
   self.monitor_value = monitor_value
 
   progress_bar = trange(1, glocalk.max_epoch_p + 1, disable=not glocalk.verbose)
 
+  counter = 0
 
-  for _ in progress_bar:
+  for epoch in progress_bar:
     optimizer.step(closure)
     complete_model.local_kernel_net.eval()
 
@@ -239,19 +238,22 @@ def learn(self,train_set,val_set):
 
     error_train = (train_m * (np.clip(pre, pre_min, pre_max) - train_r) ** 2).sum() / train_m.sum()  # train error
     train_rmse = np.sqrt(error_train)
-    last_rmse = train_rmse
-    if glocalk.verbose:
-      print(f"Pre-training  rmse: {last_rmse:.4f}")
+    # if glocalk.verbose:
+    #   print(f"Pre-training epoch:{epoch-1} rmse: {train_rmse:.4f} count : {counter}")
 
-    if glocalk.patience_p is not None and self.early_stop(patience=glocalk.patience_p, min_delta = glocalk.tol_p):
+    if (glocalk.patience_p is not None) and ((last_rmse-train_rmse) < glocalk.tol_p):
+      counter += 1
+    else:
+      counter = 0
+    last_rmse = train_rmse
+    if counter >= glocalk.patience_p:
       print("Pre-training Early Stopping")
       break
-
   print(f"Pre-training Finished! rmse: {last_rmse:.4f}")
   #################################################################
   # Finetuning
   #################################################################
-
+  counter = 0
   self.reset_info()
   # Fine-Tuning
   optimizer_2 = torch.optim.AdamW(complete_model.parameters(), lr=0.001)
@@ -270,8 +272,7 @@ def learn(self,train_set,val_set):
 
   progress_bar = trange(1, glocalk.max_epoch_f + 1, disable=not glocalk.verbose)
 
-
-  for _ in progress_bar:
+  for epoch in progress_bar:
     optimizer_2.step(closure_2)
     complete_model.eval()
 
@@ -281,16 +282,23 @@ def learn(self,train_set,val_set):
 
 
     error_train = (train_m * (np.clip(pre, pre_min, pre_max) - train_r) ** 2).sum() / train_m.sum()  # train error
+   
+   
+   
     train_rmse = np.sqrt(error_train)
+    # if glocalk.verbose:
+    #   print(f"Fine-training epoch:{epoch-1} rmse: {train_rmse:.4f} count : {counter}")
 
-    last_rmse = train_rmse
-    if glocalk.verbose:
-      print(f"fine-training  rmse: {last_rmse:.4f}")
-
-    if glocalk.patience_f is not None and self.early_stop(patience=glocalk.patience_f,min_delta = glocalk.tol_f):
-      print("fine-training Early Stopping")
+    if (glocalk.patience_f is not None) and ((last_rmse-train_rmse) < glocalk.tol_f):
+      counter += 1
+    else:
+      counter = 0
+    if counter > glocalk.patience_f:
+      print("Fine-training Early Stopping")
       break
-  print("Fine-training Finished!")
+    last_rmse = train_rmse
+
+  print(f"Fine-training Finished! rmse: {last_rmse:.4f}")
   return pre
 
 
