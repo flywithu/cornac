@@ -29,6 +29,7 @@ from tqdm.auto import trange
     # n_layers,
     # n_m,
 
+
 class GLocalK(nn.Module):
     def __init__(
     self,
@@ -73,136 +74,6 @@ class GLocalK(nn.Module):
       self.pre_min = pre_min
       self.pre_max = pre_max
 
-
-
-######################################################
-### PRE TRAINING
-######################################################
-
-def learn(self,train_set,val_set):
-  #model :Pretraining KernetNet
-  glocalk = self.glk
-
-
-  pre_min = glocalk.pre_min
-  pre_max = glocalk.pre_max
-  n_u = train_set.num_users
-  n_m = train_set.num_items
-
-  train_r = train_set.csc_matrix.toarray().T
-  train_m = np.greater(train_r, 1e-12).astype('float32')
-
-
-  if glocalk.verbose:
-    print(f"trainset shape: {train_set.csc_matrix.toarray().shape}")
-
-  # test_r = val_set.csc_matrix.toarray().T
-
-  model = KernelNet(n_u, glocalk.n_hid, glocalk.n_dim, glocalk.n_layers, glocalk.lambda_s, glocalk.lambda_2).double().to(glocalk.device)
-  complete_model = CompleteNet(model, n_u, n_m, glocalk.n_hid, glocalk.n_dim, glocalk.n_layers, glocalk.lambda_s, glocalk.lambda_2, glocalk.gk_size, glocalk.dot_scale).double().to(glocalk.device)
-
-
-  # Pre-Training
-  optimizer = torch.optim.AdamW(complete_model.local_kernel_net.parameters(), lr=0.001)
-
-  def closure():
-    optimizer.zero_grad()
-    x = torch.Tensor(train_r).double().to(glocalk.device)
-    m = torch.Tensor(train_m).double().to(glocalk.device)
-    complete_model.local_kernel_net.train()
-    pred, reg = complete_model.local_kernel_net(x)
-    loss = Loss().to(glocalk.device)(pred, reg, m, x)
-    loss.backward()
-    return loss
-
-  last_rmse = np.inf
-
-
-  def monitor_value():
-    return last_rmse
-
-  self.monitor_value = monitor_value
-
-  progress_bar = trange(1, glocalk.max_epoch_p + 1, disable=not glocalk.verbose)
-
-
-  for _ in progress_bar:
-    optimizer.step(closure)
-    complete_model.local_kernel_net.eval()
-
-
-    pre, _ = model(torch.Tensor(train_r).double().to(glocalk.device))
-    
-    pre = pre.float().cpu().detach().numpy()
-    
-    # error = (test_m * (np.clip(pre, 1., 5.) - test_r) ** 2).sum() / test_m.sum()  # test error
-    # test_rmse = np.sqrt(error)
-
-    error_train = (train_m * (np.clip(pre, pre_min, pre_max) - train_r) ** 2).sum() / train_m.sum()  # train error
-    train_rmse = np.sqrt(error_train)
-    last_rmse = train_rmse
-    if glocalk.verbose:
-      print(f"Pre-training  rmse: {last_rmse:.4f}")
-
-    if glocalk.patience_p is not None and self.early_stop(patience=glocalk.patience_p, min_delta = glocalk.tol_p):
-      print("Pre-training Early Stopping")
-      break
-
-  print(f"Pre-training Finished! rmse: {last_rmse:.4f}")
-  #################################################################
-  # Finetuning
-  #################################################################
-
-  self.reset_info()
-  # Fine-Tuning
-  optimizer = torch.optim.AdamW(complete_model.parameters(), lr=0.001)
-
-  def closure():
-    optimizer.zero_grad()
-    x = torch.Tensor(train_r).double().to(glocalk.device)
-    m = torch.Tensor(train_m).double().to(glocalk.device)
-    complete_model.train()
-    pred, reg = complete_model(x)
-    loss = Loss().to(glocalk.device)(pred, reg, m, x)
-    loss.backward()
-    return loss
-
-  last_rmse = np.inf
-
-  progress_bar = trange(1, glocalk.max_epoch_f + 1, disable=not glocalk.verbose)
-
-
-  for _ in progress_bar:
-    optimizer.step(closure)
-    complete_model.eval()
-
-    pre, _ = complete_model(torch.Tensor(train_r).double().to(glocalk.device))
-    
-    pre = pre.float().cpu().detach().numpy()
-
-
-    error_train = (train_m * (np.clip(pre, pre_min, pre_max) - train_r) ** 2).sum() / train_m.sum()  # train error
-    train_rmse = np.sqrt(error_train)
-
-    last_rmse = train_rmse
-    if glocalk.verbose:
-      print(f"fine-training  rmse: {last_rmse:.4f}")
-
-    if glocalk.patience_f is not None and self.early_stop(patience=glocalk.patience_f,min_delta = glocalk.tol_f):
-      print("fine-training Early Stopping")
-      break
-  print("Fine-training Finished!")
-  return pre
-
-
-###########################################################
-# Network Functions
-###########################################################
-
-def local_kernel(u, v):
-    dist = torch.norm(u - v, p=2, dim=2)
-    hat = torch.clamp(1. - dist**2, min=0.)
-    return hat
 
 class KernelLayer(nn.Module):
     def __init__(self, n_in, n_hid, n_dim, lambda_s, lambda_2, activation=nn.Sigmoid()):
@@ -300,3 +171,135 @@ class Loss(nn.Module):
       sqE = torch.nn.functional.mse_loss(diff, torch.zeros_like(diff))
       loss_p = sqE + reg_loss
       return loss_p
+    
+
+
+######################################################
+### PRE TRAINING
+######################################################
+
+def learn(self,train_set,val_set):
+  #model :Pretraining KernetNet
+  glocalk = self.glk
+
+
+  pre_min = glocalk.pre_min
+  pre_max = glocalk.pre_max
+  n_u = train_set.num_users
+  n_m = train_set.num_items
+
+  train_r = train_set.csc_matrix.toarray().T
+  train_m = np.greater(train_r, 1e-12).astype('float32')
+
+
+  if glocalk.verbose:
+    print(f"trainset shape3: {train_r.shape}")
+
+  # test_r = val_set.csc_matrix.toarray().T
+
+  model = KernelNet(n_u, glocalk.n_hid, glocalk.n_dim, glocalk.n_layers, glocalk.lambda_s, glocalk.lambda_2).double().to(glocalk.device)
+  complete_model = CompleteNet(model, n_u, n_m, glocalk.n_hid, glocalk.n_dim, glocalk.n_layers, glocalk.lambda_s, glocalk.lambda_2, glocalk.gk_size, glocalk.dot_scale).double().to(glocalk.device)
+
+
+  # Pre-Training
+  optimizer = torch.optim.AdamW(complete_model.local_kernel_net.parameters(), lr=0.001)
+
+  def closure():
+    optimizer.zero_grad()
+    x = torch.Tensor(train_r).double().to(glocalk.device)
+    m = torch.Tensor(train_m).double().to(glocalk.device)
+    complete_model.local_kernel_net.train()
+    pred, reg = complete_model.local_kernel_net(x)
+    loss = Loss().to(glocalk.device)(pred, reg, m, x)
+    loss.backward()
+    return loss
+
+  last_rmse = np.inf
+
+
+  def monitor_value():
+    return last_rmse
+
+  self.monitor_value = monitor_value
+
+  progress_bar = trange(1, glocalk.max_epoch_p + 1, disable=not glocalk.verbose)
+
+
+  for _ in progress_bar:
+    optimizer.step(closure)
+    complete_model.local_kernel_net.eval()
+
+
+    pre, _ = model(torch.Tensor(train_r).double().to(glocalk.device))
+    
+    pre = pre.float().cpu().detach().numpy()
+    
+    # error = (test_m * (np.clip(pre, 1., 5.) - test_r) ** 2).sum() / test_m.sum()  # test error
+    # test_rmse = np.sqrt(error)
+
+    error_train = (train_m * (np.clip(pre, pre_min, pre_max) - train_r) ** 2).sum() / train_m.sum()  # train error
+    train_rmse = np.sqrt(error_train)
+    last_rmse = train_rmse
+    if glocalk.verbose:
+      print(f"Pre-training  rmse: {last_rmse:.4f}")
+
+    if glocalk.patience_p is not None and self.early_stop(patience=glocalk.patience_p, min_delta = glocalk.tol_p):
+      print("Pre-training Early Stopping")
+      break
+
+  print(f"Pre-training Finished! rmse: {last_rmse:.4f}")
+  #################################################################
+  # Finetuning
+  #################################################################
+
+  self.reset_info()
+  # Fine-Tuning
+  optimizer_2 = torch.optim.AdamW(complete_model.parameters(), lr=0.001)
+
+  def closure_2():
+    optimizer_2.zero_grad()
+    x = torch.Tensor(train_r).double().to(glocalk.device)
+    m = torch.Tensor(train_m).double().to(glocalk.device)
+    complete_model.train()
+    pred, reg = complete_model(x)
+    loss = Loss().to(glocalk.device)(pred, reg, m, x)
+    loss.backward()
+    return loss
+
+  last_rmse = np.inf
+
+  progress_bar = trange(1, glocalk.max_epoch_f + 1, disable=not glocalk.verbose)
+
+
+  for _ in progress_bar:
+    optimizer_2.step(closure_2)
+    complete_model.eval()
+
+    pre, _ = complete_model(torch.Tensor(train_r).double().to(glocalk.device))
+    
+    pre = pre.float().cpu().detach().numpy()
+
+
+    error_train = (train_m * (np.clip(pre, pre_min, pre_max) - train_r) ** 2).sum() / train_m.sum()  # train error
+    train_rmse = np.sqrt(error_train)
+
+    last_rmse = train_rmse
+    if glocalk.verbose:
+      print(f"fine-training  rmse: {last_rmse:.4f}")
+
+    if glocalk.patience_f is not None and self.early_stop(patience=glocalk.patience_f,min_delta = glocalk.tol_f):
+      print("fine-training Early Stopping")
+      break
+  print("Fine-training Finished!")
+  return pre
+
+
+###########################################################
+# Network Functions
+###########################################################
+
+def local_kernel(u, v):
+    dist = torch.norm(u - v, p=2, dim=2)
+    hat = torch.clamp(1. - dist**2, min=0.)
+    return hat
+
