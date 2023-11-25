@@ -286,17 +286,17 @@ def learn(self,train_set,val_set):
    
    
     train_rmse = np.sqrt(error_train)
-    # if glocalk.verbose:
-    #   print(f"Fine-training epoch:{epoch-1} rmse: {train_rmse:.4f} count : {counter}")
+    if (glocalk.verbose) and ((epoch-1)%50 ==0):
+      print(f"Fine-training epoch:{epoch-1} rmse: {train_rmse:.4f} count : {counter}")
 
     if (glocalk.patience_f is not None) and ((last_rmse-train_rmse) < glocalk.tol_f):
       counter += 1
     else:
       counter = 0
+    last_rmse = train_rmse
     if counter >= glocalk.patience_f:
       print("Fine-training Early Stopping")
       break
-    last_rmse = train_rmse
 
   print(f"Fine-training Finished! rmse: {last_rmse:.4f}")
   return pre
@@ -310,4 +310,3 @@ def local_kernel(u, v):
     dist = torch.norm(u - v, p=2, dim=2)
     hat = torch.clamp(1. - dist**2, min=0.)
     return hat
-
