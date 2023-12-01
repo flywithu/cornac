@@ -246,9 +246,11 @@ def learn(self,train_set,val_set):
     else:
       counter = 0
     last_rmse = train_rmse
+    progress_bar.set_postfix(rmse=last_rmse)
     if counter >= glocalk.patience_p:
       print("Pre-training Early Stopping")
       break
+
   print(f"Pre-training Finished! rmse: {last_rmse:.4f}")
   #################################################################
   # Finetuning
@@ -294,6 +296,7 @@ def learn(self,train_set,val_set):
     else:
       counter = 0
     last_rmse = train_rmse
+    progress_bar.set_postfix(rmse=last_rmse)
     if counter >= glocalk.patience_f:
       print("Fine-training Early Stopping")
       break
