@@ -10,7 +10,7 @@ name: upload
 
 on:
   push:
-    branches: [ master ]
+    branches: [ master , mydev]
 
 jobs:
   build-wheels:
