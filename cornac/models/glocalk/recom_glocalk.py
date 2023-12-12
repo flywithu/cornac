@@ -101,7 +101,7 @@ class GLocalK(Recommender):
         """
         Recommender.fit(self, train_set, val_set)
         import torch
-        from .glocalk import GLocalK, learn
+        from .glocalk import implGLocalK, learn
       
         if self.trainable:
 
@@ -117,7 +117,7 @@ class GLocalK(Recommender):
                 torch.backends.cudnn.benchmark = False
                 torch.backends.cudnn.enabled = False
 
-            self.glk = GLocalK(
+            self.glk = implGLocalK(
                 verbose=self.verbose,
                 device = self.device,
                 n_hid = self.n_hid,  # size of hidden layers
