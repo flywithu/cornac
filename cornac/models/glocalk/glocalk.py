@@ -23,7 +23,7 @@ import torch.nn.functional as F
     # n_layers,
     # n_m,
 
-class GLocalK(nn.Module):
+class implGLocalK(nn.Module):
     def __init__(
     self,
     verbose,
