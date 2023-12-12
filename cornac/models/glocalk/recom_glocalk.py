@@ -76,9 +76,10 @@ class GLocalK(Recommender):
 
         self.seed = seed
         self.verbose = verbose
+        self.use_gpu = use_gpu
         
         import torch
-        if use_gpu and torch.cuda.is_available():
+        if self.use_gpu and torch.cuda.is_available():
             self.device = torch.device("cuda:0")
         else:
             self.device = torch.device("cpu") 
