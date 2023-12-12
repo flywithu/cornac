@@ -46,7 +46,6 @@ class implGLocalK(nn.Module):
     dot_scale, # dot product weight for global kernel
     pre_min,
     pre_max,
-    use_gpu,
     ):
       self.device = device
       self.n_hid = n_hid
@@ -65,7 +64,6 @@ class implGLocalK(nn.Module):
       self.verbose = verbose
       self.pre_min = pre_min
       self.pre_max = pre_max
-      self.use_gpu = use_gpu
 
 
 class KernelLayer(nn.Module):
