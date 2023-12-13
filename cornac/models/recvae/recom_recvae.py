@@ -87,7 +87,7 @@ class RecVAE(Recommender):
         self.n_dec_epochs = n_dec_epochs
         self.not_alternating = not_alternating
         self.seed = seed
-
+        self.user_gpu = use_gpu
         import torch
         if use_gpu and torch.cuda.is_available():
             self.device = torch.device("cuda:0")
